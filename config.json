@@ -1,0 +1,6 @@
+{
+	"language": "JAVA19",
+	"filterFileExtensions": "true",
+	"pageWith": "200",
+	"avoidDuplicatesBetweenJplagAndSim": "false"
+}
