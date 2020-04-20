@@ -3,8 +3,10 @@ package com.hera.plagium_finder.jplag;
 import com.hera.plagium_finder.common.StarterDto;
 import com.hera.plagium_finder.common.Submission;
 import com.hera.plagium_finder.util.ExternalProgramOutput;
+import com.hera.plagium_finder.util.ExternalResourceUtil;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
@@ -24,22 +26,26 @@ public class JplagPlagiarismFinder {
 
 	public JplagResult findPlagiarism() {
 		JplagResult jplagResult = new JplagResult();
-		ExternalProgramOutput externalProgramOutput = callExternalProgram("java -jar ./jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar -vl -s -l "
+		ExternalProgramOutput externalProgramOutput = callExternalProgram("java -jar ./jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar -m 40% -vl -s -l "
 						+ starterDto.getLanguage().jplagParameter
 						+ " -p "
 						+ join(",", starterDto.getLanguage().fileExtensions)
-						+ " ./submissions");
+						+ " ./submissions", false);
 		if (isNotEmpty(externalProgramOutput.getStdErr())) {
-			System.out.println("Running jplag failed: " + join("\r\n", externalProgramOutput.getStdErr()));
+			System.out.println("Running JPlag failed: " + join("\r\n", externalProgramOutput.getStdErr()));
 			return jplagResult;
 		}
 		if (externalProgramOutput.getStdOut().isEmpty()) {
 			System.out.println("Running jplag failed unexpectedly");
 			return jplagResult;
 		}
-		if (!externalProgramOutput.getStdOut().get(externalProgramOutput.getStdOut().size() - 1).equals("Writing results to: result")) {
-			System.out.println("Running jplag failed: " + join("\r\n", externalProgramOutput.getStdOut()));
-			return jplagResult;
+		if (finishedWithAnIssue(externalProgramOutput)) {
+			if (ExternalResourceUtil.hasDirectory("./", "result")) {
+				System.out.println("Running JPlag has some issues: " + join("\r\n", externalProgramOutput.getStdOut()));
+			} else {
+				System.out.println("Running JPlag failed: " + join("\r\n", externalProgramOutput.getStdOut()));
+				return jplagResult;
+			}
 		}
 
 		String line;
@@ -62,5 +68,9 @@ public class JplagPlagiarismFinder {
 		}
 		jplagResult.setSuccessfulRun(true);
 		return jplagResult;
+	}
+
+	private boolean finishedWithAnIssue(ExternalProgramOutput externalProgramOutput) {
+		return externalProgramOutput.getStdOut().stream().noneMatch(message -> message.equals("0 parser errors!"));
 	}
 }

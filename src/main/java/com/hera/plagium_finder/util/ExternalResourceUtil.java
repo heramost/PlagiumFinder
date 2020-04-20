@@ -10,7 +10,7 @@ import java.util.List;
 import static java.util.Collections.emptyList;
 
 public class ExternalResourceUtil {
-	public static ExternalProgramOutput callExternalProgram(String program) {
+	public static ExternalProgramOutput callExternalProgram(String program, boolean readinessNeedsToBeChecked) {
 		System.out.println("Calling: " + program);
 		ExternalProgramOutput externalProgramOutput = new ExternalProgramOutput();
 		try {
@@ -20,9 +20,9 @@ public class ExternalResourceUtil {
 
 			BufferedReader brCleanUp = new BufferedReader(new InputStreamReader(stdout));
 			String line;
-			while ((line = brCleanUp.readLine()) != null) {
+			while ((!readinessNeedsToBeChecked || brCleanUp.ready()) && (line = brCleanUp.readLine()) != null) {
 				externalProgramOutput.addStdOutMessage(line);
-			}
+				}
 			brCleanUp.close();
 
 			brCleanUp = new BufferedReader(new InputStreamReader(stderr));
@@ -42,6 +42,7 @@ public class ExternalResourceUtil {
 		try {
 			File file = new File(path);
 			String[] directories = file.list((current, name) -> new File(current, name).isDirectory());
+			Arrays.sort(directories, StringNumComparator.INSTANCE);
 			return Arrays.asList(directories);
 		}
 		catch (Exception e) {
@@ -49,5 +50,9 @@ public class ExternalResourceUtil {
 		}
 
 		return emptyList();
+	}
+
+	public static boolean hasDirectory(String path, String directory) {
+		return getDirectories(path).contains(directory);
 	}
 }

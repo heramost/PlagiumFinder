@@ -7,19 +7,22 @@ public class ParsedFileHandler {
 	private List<ParsedFile> parsedFiles = new LinkedList<>();
 	private List<ComparisonResult> comparisonResults = new LinkedList<>();
 
-	public void createParsedFileIfNew(String path, int nrOfTokens) {
+	public ParsedFile createParsedFileIfNew(String path, int nrOfTokens) {
+		ParsedFile parsedFile;
 		try {
-			getParsedFile(path);
+			parsedFile =  getParsedFile(path);
 		}
 		catch (IllegalArgumentException e) { //parsed file does not exists
-			parsedFiles.add(new ParsedFile(path, nrOfTokens));
+			parsedFile = new ParsedFile(path, nrOfTokens);
+			parsedFiles.add(parsedFile);
 		}
+		return parsedFile;
 	}
 
-	public void addPercentage(String parsedFileName, String otherParsedFileName, double percentage) {
+	public void addPercentage(String parsedFileName, String otherParsedFileName, double percentage, Measure measure) {
 		ParsedFile parsedFile = getParsedFile(parsedFileName);
 		ParsedFile otherParsedFile = getParsedFile(otherParsedFileName);
-		comparisonResults.add(new ComparisonResult(parsedFile, otherParsedFile, percentage));
+		comparisonResults.add(new ComparisonResult(parsedFile, otherParsedFile, percentage, measure));
 	}
 
 	private ParsedFile getParsedFile(String parsedFileName) {

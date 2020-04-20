@@ -8,19 +8,22 @@ public class ComparisonResult {
 	private ParsedFile otherParsedFile;
 	private double percentage;
 	private List<String> commonCodeLines = new LinkedList<>();
+	private final Measure measure;
 
-	public ComparisonResult(ParsedFile parsedFile, ParsedFile otherParsedFile, double percentage) {
+	public ComparisonResult(ParsedFile parsedFile, ParsedFile otherParsedFile, double percentage, Measure measure) {
 		this.parsedFile = parsedFile;
 		this.otherParsedFile = otherParsedFile;
 		this.percentage = percentage;
+		this.measure = measure;
+		measure.addComparsionResult(this);
 	}
 
 	public boolean significantMatch() {
-		return getParsedFile().getNrOfTokens() >= 80 && getOtherParsedFile().getNrOfTokens() >= 80 && (percentage >= 30 || getNrOfMatchingTokens() >= 50);
+		return getParsedFile().getNrOfTokens() >= 80 && getOtherParsedFile().getNrOfTokens() >= 80 && (percentage >= 30 || getNrOfMatchingTokens() >= 200);
 	}
 
 	public double getNrOfMatchingTokens() {
-		return otherParsedFile.getNrOfTokens() * percentage / 100;
+		return parsedFile.getNrOfTokens() * percentage / 100;
 	}
 
 	public void addCommonCodeLine(String commonCodeLine) {
@@ -41,5 +44,9 @@ public class ComparisonResult {
 
 	public List<String> getCommonCodeLines() {
 		return commonCodeLines;
+	}
+
+	public Measure getMeasure() {
+		return measure;
 	}
 }

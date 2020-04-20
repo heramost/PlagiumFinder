@@ -5,7 +5,6 @@ import com.hera.plagium_finder.common.Submission;
 import com.hera.plagium_finder.jplag.JplagResult;
 import com.hera.plagium_finder.util.ExternalProgramOutput;
 import com.hera.plagium_finder.util.ExternalResourceUtil;
-import org.apache.commons.collections4.CollectionUtils;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -20,6 +19,7 @@ import java.util.stream.Collectors;
 
 import static com.hera.plagium_finder.util.ExternalResourceUtil.callExternalProgram;
 import static java.util.stream.Collectors.*;
+import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 
 public class SimPlagiarismFinder {
 	private final StarterDto starterDto;
@@ -51,8 +51,9 @@ public class SimPlagiarismFinder {
 
 		int whereToPutNewTable = lines.lastIndexOf("<HR>");
 		MatchFileMaker matchFileMaker = new MatchFileMaker();
-		lines.insert(whereToPutNewTable, reportMatchesFoundBySim(parsedFileHandler, matchFileMaker, SimPlagiarismFinder::calculateMaximumSimilarity, "maximum"));
-		lines.insert(whereToPutNewTable, reportMatchesFoundBySim(parsedFileHandler, matchFileMaker, SimPlagiarismFinder::calculateAverageSimilarity, "average"));
+		lines.insert(whereToPutNewTable, reportMatchesFoundBySim(parsedFileHandler, matchFileMaker, SimPlagiarismFinder::calculateNrOfMatchingTokens, "number of matching tokens", false));
+		lines.insert(whereToPutNewTable, reportMatchesFoundBySim(parsedFileHandler, matchFileMaker, SimPlagiarismFinder::calculateMaximumSimilarity, "maximum similarity", true));
+		lines.insert(whereToPutNewTable, reportMatchesFoundBySim(parsedFileHandler, matchFileMaker, SimPlagiarismFinder::calculateAverageSimilarity, "average similarty", true));
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter("./result/index.html"))) {
 			writer.write(lines.toString());
 		}
@@ -61,19 +62,24 @@ public class SimPlagiarismFinder {
 		}
 	}
 
-	private String reportMatchesFoundBySim(ParsedFileHandler parsedFileHandler, MatchFileMaker matchFileMaker, ToDoubleFunction<Map.Entry<Submission, List<ComparisonResult>>> similarityCalculator, final String similarityType) {
-		return "<HR><H4>Matches sorted by " + similarityType + " similarity found by SIM:</H4>\n"  //todo sorting
+	private String reportMatchesFoundBySim(ParsedFileHandler parsedFileHandler, MatchFileMaker matchFileMaker, ToDoubleFunction<Map.Entry<Submission, List<ComparisonResult>>> similarityCalculator, final String similarityType, boolean percentageNeeded) {
+		return "<HR><H4>Matches sorted by " + similarityType + " found by SIM:</H4>\n"
 						+ "<TABLE CELLPADDING=3 CELLSPACING=2>"
 						+ parsedFileHandler.getComparisonResults().stream()
+						.filter(comparisonResult -> isNotEmpty(comparisonResult.getCommonCodeLines()))
 						.collect(groupingBy(comparisonResult -> comparisonResult.getParsedFile().getSubmission())).entrySet().stream()
+						.sorted(Comparator.comparingDouble(comparisonResults -> ((Map.Entry<Submission, List<ComparisonResult>>)comparisonResults).getValue().stream()
+										.collect(groupingBy(comparisonResult -> comparisonResult.getOtherParsedFile().getSubmission())).entrySet().stream()
+										.mapToDouble(similarityCalculator)
+										.max().getAsDouble()).reversed())
 						.map(result -> "<TR>"
-										+ "<TD BGCOLOR=#c0c0ff>" + result.getKey().getPublisher() + "</TD><TD><nobr>-&gt;</nobr></TD>"
+										+ "<TD BGCOLOR=#9ACD32>" + result.getKey().getPublisher() + "</TD><TD><nobr>-&gt;</nobr></TD>"
 										+ result.getValue().stream()
 										.collect(groupingBy(comparisonResult -> comparisonResult.getOtherParsedFile().getSubmission())).entrySet().stream()
 										.sorted(Comparator.comparingDouble(similarityCalculator).reversed())
-										.map(comparisonResults -> "<TD BGCOLOR=#c0c0ff ALIGN=center><A HREF=\"sim_match"+ matchFileMaker.createMatchFile(comparisonResults.getValue()) +".html\">"
+										.map(comparisonResults -> "<TD BGCOLOR=#9ACD32 ALIGN=center><A HREF=\"sim_match" + matchFileMaker.createMatchFile(comparisonResults.getValue()) + ".html\">"
 														+ comparisonResults.getKey()
-														+ "</A><BR><FONT COLOR=\"#ff0000\">(" + similarityCalculator.applyAsDouble(comparisonResults) + "%)</FONT></TD>")
+														+ "</A><BR><FONT COLOR=\"#ff0000\">(" + similarityCalculator.applyAsDouble(comparisonResults) + (percentageNeeded ? "%" : "") + ")</FONT></TD>")
 										.collect(joining(""))
 										+ "</TR>")
 						.collect(Collectors.joining("\r\n"))
@@ -82,35 +88,47 @@ public class SimPlagiarismFinder {
 
 	private static double calculateMaximumSimilarity(Map.Entry<Submission, List<ComparisonResult>> comparisonResults) {
 		return comparisonResults.getValue().stream()
-		.map(ComparisonResult::getPercentage)
-		.mapToDouble(percentage -> Math.round(percentage * 10) / 10.0)
-		.max().getAsDouble();
+						.map(ComparisonResult::getPercentage)
+						.mapToDouble(percentage -> Math.round(percentage * 10) / 10.0)
+						.max().getAsDouble();
+	}
+
+	private static double calculateNrOfMatchingTokens(Map.Entry<Submission, List<ComparisonResult>> comparisonResults) {
+		return comparisonResults.getValue().stream()
+						.filter(ComparisonResult::significantMatch)
+						.mapToDouble(ComparisonResult::getNrOfMatchingTokens)
+						.sum();
 	}
 
 	private static double calculateAverageSimilarity(Map.Entry<Submission, List<ComparisonResult>> comparisonResults) {
 		Double nrOfMatchingTokens = comparisonResults.getValue().stream()
+						.filter(ComparisonResult::significantMatch)
 						.map(ComparisonResult::getNrOfMatchingTokens)
 						.reduce(Double::sum).get();
 		Integer nrOfTokens = comparisonResults.getValue().stream()
-						.map(ComparisonResult::getOtherParsedFile)
-						.map(ParsedFile::getNrOfTokens)
-						.reduce(Integer::sum).get();
+						.map(ComparisonResult::getParsedFile)
+						.mapToInt(ParsedFile::getNrOfTokens)
+						.sum();
 		return Math.round(nrOfMatchingTokens / nrOfTokens * 1000) / 10.0;
-	}
+}
 
 	private void compareSimilarFiles(ParsedFileHandler parsedFileHandler) {
 		parsedFileHandler.getComparisonResults().stream()
+						.map(ComparisonResult::getMeasure)
+						.distinct()
+						.filter(Measure::significantSimilarity)
+						.flatMap(measure -> measure.getComparisonResults().stream())
 						.filter(ComparisonResult::significantMatch)
 						.filter(comparisonResult -> !starterDto.isFilterFileExtensions() ||
 										(hasAppropriateFileExtension(comparisonResult.getParsedFile()) && hasAppropriateFileExtension(comparisonResult.getOtherParsedFile())))
 						.forEach(comparisonResult -> {
 							ExternalProgramOutput externalProgramOutput = callExternalProgram("./"
 											+ starterDto.getLanguage().simProgram
-											+ " -S -w " + starterDto.getPageWith() + " \""
+											+ " -r 30 -S -w " + starterDto.getPageWith() + " \""
 											+ comparisonResult.getParsedFile().getName()
 											+ "\" \"|\" \""
 											+ comparisonResult.getOtherParsedFile().getName()
-											+ "\"");
+											+ "\"", false);
 							boolean codeReported = false;
 							for (String out : externalProgramOutput.getStdOut()) {
 								if (out.startsWith(comparisonResult.getParsedFile().getName() + ": line")) {
@@ -131,46 +149,52 @@ public class SimPlagiarismFinder {
 		ParsedFileHandler parsedFileHandler = new ParsedFileHandler();
 		for (int i = 0; i < submissions.size() - 1; ++i) {
 			for (int j = i + 1; j < submissions.size(); ++j) {
-				Submission submission = new Submission(submissions.get(i));
-				Submission otherSubmission = new Submission(submissions.get(j));
-				if (starterDto.isAvoidDuplicatesBetweenJplagAndSim() && jplagResult.contains(submission, otherSubmission)) {
-					continue;
-				}
-				ExternalProgramOutput externalProgramOutput = callExternalProgram("./"
-								+ starterDto.getLanguage().simProgram
-								+ " -p -S -R \"./submissions/"
-								+ submission
-								+ "/*\" \"|\" \"./submissions/"
-								+ otherSubmission
-								+ "/*\"");
-				for (String out : externalProgramOutput.getStdOut()) {
-					if (out.startsWith("File ./")) {
-						createParsedFileIfNew(parsedFileHandler, out);
-					}
-					else if (out.contains(" consists for ")) {
-						addPercentageResult(parsedFileHandler, out);
-					}
-				}
-
-				if (CollectionUtils.isNotEmpty(externalProgramOutput.getStdErr())) {
-					System.out.println("Comparing submissions " + submission + " and " + otherSubmission + " failed: " + String.join("\r\n", externalProgramOutput.getStdErr()));
-				}
+				calculateSimilarityPercentage(submissions, parsedFileHandler, i, j);
+				calculateSimilarityPercentage(submissions, parsedFileHandler, j, i);
 			}
 		}
 		return parsedFileHandler;
 	}
 
-	private void addPercentageResult(ParsedFileHandler parsedFileHandler, String out) {
+	private void calculateSimilarityPercentage(List<String> submissions, ParsedFileHandler parsedFileHandler, int i, int j) {
+		Submission submission = new Submission(submissions.get(i));
+		Submission otherSubmission = new Submission(submissions.get(j));
+		if (starterDto.isAvoidDuplicatesBetweenJplagAndSim() && jplagResult.contains(submission, otherSubmission)) {
+			return;
+		}
+		ExternalProgramOutput externalProgramOutput = callExternalProgram("./"
+						+ starterDto.getLanguage().simProgram
+						+ " -r 30 -p -u -S -R \"./submissions/"
+						+ submission
+						+ "/*\" \"|\" \"./submissions/"
+						+ otherSubmission
+						+ "/*\"", false);
+		Measure measure = new Measure();
+		for (String out : externalProgramOutput.getStdOut()) {
+			if (out.startsWith("File ./")) {
+				measure.addParsedFile(createParsedFileIfNew(parsedFileHandler, out));
+			}
+			else if (out.contains(" consists for ")) {
+				addPercentageResult(parsedFileHandler, out, measure);
+			}
+		}
+
+		if (isNotEmpty(externalProgramOutput.getStdErr())) {
+			System.out.println("Comparing submissions " + submission + " and " + otherSubmission + " failed: " + String.join("\r\n", externalProgramOutput.getStdErr()));
+		}
+	}
+
+	private void addPercentageResult(ParsedFileHandler parsedFileHandler, String out, Measure measure) {
 		String[] firstAndSecondParsedFileWithPercentage = out.split(" consists for ");
 		String parsedFile = firstAndSecondParsedFileWithPercentage[0];
 		String[] percentageAndSecondParsedFile = firstAndSecondParsedFileWithPercentage[1].split(" % of ");
 		double percentage = Double.parseDouble(percentageAndSecondParsedFile[0]);
 		String otherParsedFile = percentageAndSecondParsedFile[1].substring(0, percentageAndSecondParsedFile[1].lastIndexOf(" material"));
-		parsedFileHandler.addPercentage(parsedFile, otherParsedFile, percentage);
+		parsedFileHandler.addPercentage(parsedFile, otherParsedFile, percentage, measure);
 	}
 
-	private void createParsedFileIfNew(ParsedFileHandler parsedFileHandler, String out) {
+	private ParsedFile createParsedFileIfNew(ParsedFileHandler parsedFileHandler, String out) {
 		int fileNameEnd = out.indexOf(": ");
-		parsedFileHandler.createParsedFileIfNew(out.substring(5, fileNameEnd), Integer.parseInt(out.substring(fileNameEnd + 2, fileNameEnd + out.substring(fileNameEnd).indexOf(" tokens, "))));
+		return parsedFileHandler.createParsedFileIfNew(out.substring(5, fileNameEnd), Integer.parseInt(out.substring(fileNameEnd + 2, fileNameEnd + out.substring(fileNameEnd).lastIndexOf(" token"))));
 	}
 }
