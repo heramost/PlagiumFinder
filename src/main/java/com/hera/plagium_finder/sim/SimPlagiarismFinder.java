@@ -38,7 +38,7 @@ public class SimPlagiarismFinder {
 
 	public void findPlagiarism() {
 		List<String> submissions = ExternalResourceUtil.getDirectories("./submissions");
-		ParsedFileHandler parsedFileHandler = initializeParsedFileHandler(submissions);
+		ParsedFileHandler parsedFileHandler = findSimilaritiesBetweenSubmissions(submissions);
 		markCommonCode(parsedFileHandler);
 		getRidOfNotSignificantMatches(parsedFileHandler);
 		keepBetterResultForOppositeComparisonResults(parsedFileHandler);
@@ -46,6 +46,7 @@ public class SimPlagiarismFinder {
 	}
 
 	private void keepBetterResultForOppositeComparisonResults(ParsedFileHandler parsedFileHandler) {
+		System.out.println("Keeping higher result for opposite measures");
 		parsedFileHandler.getComparisonResults().removeAll(parsedFileHandler.getComparisonResults().stream()
 						.filter(comparisonResult -> parsedFileHandler.getComparisonResults().contains(comparisonResult.getOppositeComparisonResult()))
 						.filter(comparisonResult -> {
@@ -58,6 +59,7 @@ public class SimPlagiarismFinder {
 	}
 
 	private void markCommonCode(ParsedFileHandler parsedFileHandler) {
+		System.out.println("Finding similarities over " + starterDto.getMaximumMatchOccurrenceBeforeIgnored() + " occurrences.");
 		Map<String, Set<ComparisonResult>> commonCodeBlocksFound = new HashMap<>();
 		parsedFileHandler.getComparisonResults()
 						.forEach(comparisonResult -> comparisonResult.getSplitCommonCodeBlocksWithTokenSize()
@@ -75,10 +77,12 @@ public class SimPlagiarismFinder {
 	}
 
 	private void getRidOfNotSignificantMatches(ParsedFileHandler parsedFileHandler) {
+		System.out.println("Selecting significant matches");
 		parsedFileHandler.getComparisonResults().removeIf(comparisonResult -> !comparisonResult.significantMatch());
 	}
 
 	private void writeOutput(ParsedFileHandler parsedFileHandler) {
+		System.out.println("Extending JPlag's output.");
 		StringBuilder lines = new StringBuilder();
 		String line;
 		try (BufferedReader br = new BufferedReader(new FileReader("./result/index.html"))) {
@@ -133,7 +137,7 @@ public class SimPlagiarismFinder {
 		return round(comparisonResult.getPercentage() * 10) / 10.0;
 	}
 
-	private ParsedFileHandler initializeParsedFileHandler(List<String> submissions) {
+	private ParsedFileHandler findSimilaritiesBetweenSubmissions(List<String> submissions) {
 		ParsedFileHandler parsedFileHandler = new ParsedFileHandler();
 		for (int i = 0; i < submissions.size() - 1; ++i) {
 			for (int j = i + 1; j < submissions.size(); ++j) {

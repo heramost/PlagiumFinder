@@ -26,7 +26,7 @@ public class JplagPlagiarismFinder {
 	public JplagResult findPlagiarism() {
 		JplagResult jplagResult = new JplagResult();
 		ExternalProgramOutput externalProgramOutput = callExternalProgram("java -jar ./jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar -m "
-						+ starterDto.getPrecision().getExpectedPercentage()
+						+ starterDto.getPrecision().getMinimumExpectedPercentage()
 						+ "% -vl -s -l "
 						+ starterDto.getLanguage().jplagParameter
 						+ " -t " + starterDto.getPrecision().getJplagThreshold() + " -p "

@@ -22,7 +22,7 @@ public class ComparisonResult {
 	}
 
 	public boolean significantMatch() {
-		return (parsedFiles.stream().mapToInt(ParsedFile::getNrOfTokens).sum() >= precision.getSimMinimumNrOfTokens() && getPercentage() >= precision.getExpectedPercentage())
+		return (parsedFiles.stream().mapToInt(ParsedFile::getNrOfTokens).sum() >= precision.getSimMinimumNrOfTokens() && getPercentage() >= precision.getMinimumExpectedPercentage())
 						|| (double)getNrOfMatchingTokens() >= precision.getSimNrOfMatchingTokensThatMustBeReportedIfFound();
 	}
 
