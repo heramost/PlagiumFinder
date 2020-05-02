@@ -6,7 +6,6 @@ import com.hera.plagium_finder.util.ExternalProgramOutput;
 import com.hera.plagium_finder.util.ExternalResourceUtil;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
@@ -26,9 +25,11 @@ public class JplagPlagiarismFinder {
 
 	public JplagResult findPlagiarism() {
 		JplagResult jplagResult = new JplagResult();
-		ExternalProgramOutput externalProgramOutput = callExternalProgram("java -jar ./jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar -m 40% -vl -s -l "
+		ExternalProgramOutput externalProgramOutput = callExternalProgram("java -jar ./jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar -m "
+						+ starterDto.getPrecision().getExpectedPercentage()
+						+ "% -vl -s -l "
 						+ starterDto.getLanguage().jplagParameter
-						+ " -p "
+						+ " -t " + starterDto.getPrecision().getJplagThreshold() + " -p "
 						+ join(",", starterDto.getLanguage().fileExtensions)
 						+ " ./submissions", false);
 		if (isNotEmpty(externalProgramOutput.getStdErr())) {
@@ -42,7 +43,8 @@ public class JplagPlagiarismFinder {
 		if (finishedWithAnIssue(externalProgramOutput)) {
 			if (ExternalResourceUtil.hasDirectory("./", "result")) {
 				System.out.println("Running JPlag has some issues: " + join("\r\n", externalProgramOutput.getStdOut()));
-			} else {
+			}
+			else {
 				System.out.println("Running JPlag failed: " + join("\r\n", externalProgramOutput.getStdOut()));
 				return jplagResult;
 			}
@@ -71,6 +73,7 @@ public class JplagPlagiarismFinder {
 	}
 
 	private boolean finishedWithAnIssue(ExternalProgramOutput externalProgramOutput) {
-		return externalProgramOutput.getStdOut().stream().noneMatch(message -> message.equals("0 parser errors!"));
+		return externalProgramOutput.getStdOut().stream().noneMatch(message -> message.equals("0 parser errors!"))
+						|| externalProgramOutput.getStdOut().stream().anyMatch(message -> message.endsWith("submissions are not valid because they contain fewer tokens"));
 	}
 }

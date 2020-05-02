@@ -21,6 +21,10 @@ public class Main {
 			System.out.println("Old results directory: results must be deleted before run");
 			return;
 		}
+		if (ExternalResourceUtil.getDirectories("./submissions").size() < 2) {
+			System.out.println("There must be at least to valid submissions to compare");
+			return;
+		}
 		ObjectMapper mapper = new ObjectMapper();
 		StarterDto starterDto;
 		try {
@@ -35,6 +39,7 @@ public class Main {
 		JplagPlagiarismFinder jplagPlagiarismFinder = new JplagPlagiarismFinder(starterDto);
 		JplagResult jplagResult = jplagPlagiarismFinder.findPlagiarism();
 		if (!jplagResult.isSuccessfulRun()) {
+			System.out.println("JPlag failed unexpectedly.");
 			return;
 		}
 

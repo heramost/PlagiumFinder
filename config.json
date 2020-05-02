@@ -1,6 +1,7 @@
 {
-	"language": "JAVA19",
-	"filterFileExtensions": "true",
+	"language": "CPP",
 	"pageWith": "200",
-	"avoidDuplicatesBetweenJplagAndSim": "false"
+	"avoidDuplicatesBetweenJplagAndSim": "false",
+	"maximumMatchOccurrenceBeforeIgnored":"5",
+	"precision": "NORMAL"
 }

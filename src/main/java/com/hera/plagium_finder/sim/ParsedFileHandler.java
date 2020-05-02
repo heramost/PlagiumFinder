@@ -19,12 +19,6 @@ public class ParsedFileHandler {
 		return parsedFile;
 	}
 
-	public void addPercentage(String parsedFileName, String otherParsedFileName, double percentage, Measure measure) {
-		ParsedFile parsedFile = getParsedFile(parsedFileName);
-		ParsedFile otherParsedFile = getParsedFile(otherParsedFileName);
-		comparisonResults.add(new ComparisonResult(parsedFile, otherParsedFile, percentage, measure));
-	}
-
 	private ParsedFile getParsedFile(String parsedFileName) {
 		return parsedFiles.stream()
 						.filter(parsedFile -> parsedFile.getName().equals(parsedFileName))
@@ -34,5 +28,9 @@ public class ParsedFileHandler {
 
 	public List<ComparisonResult> getComparisonResults() {
 		return comparisonResults;
+	}
+
+	public void addComparisonResult(ComparisonResult comparisonResult) {
+		comparisonResults.add(comparisonResult);
 	}
 }

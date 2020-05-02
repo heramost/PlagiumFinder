@@ -1,52 +1,127 @@
 package com.hera.plagium_finder.sim;
 
+import com.hera.plagium_finder.common.Precision;
+
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.*;
 
 public class ComparisonResult {
-	private ParsedFile parsedFile;
-	private ParsedFile otherParsedFile;
-	private double percentage;
+	private final Precision precision;
+	private List<ParsedFile> parsedFiles = new LinkedList<>();
+	private List<ParsedFile> otherParsedFiles = new LinkedList<>();
 	private List<String> commonCodeLines = new LinkedList<>();
-	private final Measure measure;
+	private List<String> commonCodeBlocks = new LinkedList<>();
+	private ComparisonResult oppositeComparisonResult;
 
-	public ComparisonResult(ParsedFile parsedFile, ParsedFile otherParsedFile, double percentage, Measure measure) {
-		this.parsedFile = parsedFile;
-		this.otherParsedFile = otherParsedFile;
-		this.percentage = percentage;
-		this.measure = measure;
-		measure.addComparsionResult(this);
+	public ComparisonResult(Precision precision) {
+		this.precision = precision;
 	}
 
 	public boolean significantMatch() {
-		return getParsedFile().getNrOfTokens() >= 80 && getOtherParsedFile().getNrOfTokens() >= 80 && (percentage >= 30 || getNrOfMatchingTokens() >= 200);
+		return (parsedFiles.stream().mapToInt(ParsedFile::getNrOfTokens).sum() >= precision.getSimMinimumNrOfTokens() && getPercentage() >= precision.getExpectedPercentage())
+						|| (double)getNrOfMatchingTokens() >= precision.getSimNrOfMatchingTokensThatMustBeReportedIfFound();
 	}
 
-	public double getNrOfMatchingTokens() {
-		return parsedFile.getNrOfTokens() * percentage / 100;
+	public double getPercentage() {
+		try {
+			return getNrOfMatchingTokens() / (double)getNrOfTokens() * 100;
+		}
+		catch (Exception e) {
+			return 0;
+		}
+	}
+
+	private int getNrOfTokens() {
+		return parsedFiles.stream()
+						.mapToInt(ParsedFile::getNrOfTokens)
+						.sum();
+	}
+
+	public List<String> getSplitCommonCodeBlocksWithTokenSize() {
+		return commonCodeBlocks.stream()
+						.flatMap(commonCodeBlock -> {
+							String[] splitByOldNewSeparator = commonCodeBlock.split("\\|.");
+							return Stream.of(splitByOldNewSeparator[0], splitByOldNewSeparator[1].split("\\[")[0])
+											.map(String::trim);
+						})
+						.collect(toList());
+	}
+
+	public int getNrOfMatchingTokens() {
+		return commonCodeBlocks.stream()
+						.map(commonCodeBlock -> commonCodeBlock.contains(" - common code -") ? "0" : getTokenSizeOfCommonCodeBlock(commonCodeBlock))
+						.mapToInt(Integer::valueOf)
+						.sum();
+	}
+
+	private static String getTokenSizeOfCommonCodeBlock(String commonCodeBlock) {
+		return commonCodeBlock.split("\\[")[1].split("]")[0];
 	}
 
 	public void addCommonCodeLine(String commonCodeLine) {
 		commonCodeLines.add(commonCodeLine);
 	}
 
-	public ParsedFile getParsedFile() {
-		return parsedFile;
-	}
-
-	public ParsedFile getOtherParsedFile() {
-		return otherParsedFile;
-	}
-
-	public double getPercentage() {
-		return percentage;
+	public void addCommonCodeBlock(String commonCodeBlock) {
+		commonCodeBlocks.add(commonCodeBlock);
 	}
 
 	public List<String> getCommonCodeLines() {
 		return commonCodeLines;
 	}
 
-	public Measure getMeasure() {
-		return measure;
+	public List<String> getCommonCodeBlocks() {
+		return commonCodeBlocks;
+	}
+
+	public void addParsedFile(ParsedFile parsedFile) {
+		parsedFiles.add(parsedFile);
+	}
+
+	public void addOtherParsedFile(ParsedFile otherParsedFile) {
+		otherParsedFiles.add(otherParsedFile);
+	}
+
+	public List<String> getParsedFileNames() {
+		return parsedFiles.stream()
+						.map(ParsedFile::getName)
+						.collect(toList());
+	}
+
+	public String getPublisher() {
+		return parsedFiles.get(0).getSubmission().getPublisher();
+	}
+
+	public String getOtherPublisher() {
+		return otherParsedFiles.get(0).getSubmission().getPublisher();
+	}
+
+	public void markCommonCode(String codeBlockPart) {
+		Optional<String> optionalCodeBlock = commonCodeBlocks.stream()
+						.filter(commonCodeBlock -> commonCodeBlock.contains(codeBlockPart))
+						.findFirst();
+		optionalCodeBlock.ifPresent(codeBlock -> {
+			for (int i = 0; i < commonCodeLines.size(); i++) {
+				String commonCodeLine = commonCodeLines.get(i);
+				if (commonCodeLine.equals(codeBlock)) {
+					commonCodeLines.set(i, codeBlock + " - common code -");
+				}
+			}
+			commonCodeBlocks.remove(codeBlock);
+		});
+
+	}
+
+	public static void setOppositeComparisonResults(ComparisonResult comparisonResult, ComparisonResult oppositeComparisonResult) {
+		comparisonResult.oppositeComparisonResult = oppositeComparisonResult;
+		oppositeComparisonResult.oppositeComparisonResult = comparisonResult;
+	}
+
+	public ComparisonResult getOppositeComparisonResult() {
+		return oppositeComparisonResult;
 	}
 }
