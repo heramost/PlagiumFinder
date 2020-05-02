@@ -1,6 +1,7 @@
 package com.hera.plagium_finder.sim;
 
 import com.hera.plagium_finder.common.Precision;
+import com.hera.plagium_finder.common.Submission;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -92,12 +93,12 @@ public class ComparisonResult {
 						.collect(toList());
 	}
 
-	public String getPublisher() {
-		return parsedFiles.get(0).getSubmission().getPublisher();
+	public Submission getSubmission() {
+		return parsedFiles.get(0).getSubmission();
 	}
 
-	public String getOtherPublisher() {
-		return otherParsedFiles.get(0).getSubmission().getPublisher();
+	public Submission getOtherSubmission() {
+		return otherParsedFiles.get(0).getSubmission();
 	}
 
 	public void markCommonCode(String codeBlockPart) {

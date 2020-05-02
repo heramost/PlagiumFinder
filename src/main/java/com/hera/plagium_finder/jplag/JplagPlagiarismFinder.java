@@ -9,8 +9,6 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
 
 import static com.hera.plagium_finder.util.ExternalResourceUtil.callExternalProgram;
 import static java.lang.String.join;
@@ -23,8 +21,8 @@ public class JplagPlagiarismFinder {
 		this.starterDto = starterDto;
 	}
 
-	public JplagResult findPlagiarism() {
-		JplagResult jplagResult = new JplagResult();
+	public JplagResults findPlagiarism() {
+		JplagResults jplagResults = new JplagResults();
 		ExternalProgramOutput externalProgramOutput = callExternalProgram("java -jar ./jplag-2.12.1-SNAPSHOT-jar-with-dependencies.jar -m "
 						+ starterDto.getPrecision().getMinimumExpectedPercentage()
 						+ "% -vl -s -l "
@@ -34,11 +32,11 @@ public class JplagPlagiarismFinder {
 						+ " ./submissions", false);
 		if (isNotEmpty(externalProgramOutput.getStdErr())) {
 			System.out.println("Running JPlag failed: " + join("\r\n", externalProgramOutput.getStdErr()));
-			return jplagResult;
+			return jplagResults;
 		}
 		if (externalProgramOutput.getStdOut().isEmpty()) {
 			System.out.println("Running jplag failed unexpectedly");
-			return jplagResult;
+			return jplagResults;
 		}
 		if (finishedWithAnIssue(externalProgramOutput)) {
 			if (ExternalResourceUtil.hasDirectory("./", "result")) {
@@ -46,30 +44,26 @@ public class JplagPlagiarismFinder {
 			}
 			else {
 				System.out.println("Running JPlag failed: " + join("\r\n", externalProgramOutput.getStdOut()));
-				return jplagResult;
+				return jplagResults;
 			}
 		}
 
 		String line;
-		for (String generatedExcelNames : Arrays.asList("matches_avg.csv", "matches_max.csv")) {
-			try (BufferedReader br = new BufferedReader(new FileReader("./result/" + generatedExcelNames))) {
+			try (BufferedReader br = new BufferedReader(new FileReader("./result/matches_avg.csv"))) {
 				while ((line = br.readLine()) != null) {
 
 					String[] matchesForAFile = line.split(";");
 					Submission submission = new Submission(matchesForAFile[0]);
-					List<Submission> submissionsFoundToBeSimilar = new LinkedList<>();
 					for (int i = 2; i < matchesForAFile.length; i += 3) {
-						submissionsFoundToBeSimilar.add(new Submission(matchesForAFile[i]));
+						jplagResults.addJPlagMatch(submission, new Submission(matchesForAFile[i]), Double.valueOf(matchesForAFile[i + 1]));
 					}
-					jplagResult.addPlagiarizedSubmissions(submission, submissionsFoundToBeSimilar);
 				}
 			}
 			catch (IOException e) {
-				return jplagResult;
+				return jplagResults;
 			}
-		}
-		jplagResult.setSuccessfulRun(true);
-		return jplagResult;
+		jplagResults.setSuccessfulRun(true);
+		return jplagResults;
 	}
 
 	private boolean finishedWithAnIssue(ExternalProgramOutput externalProgramOutput) {

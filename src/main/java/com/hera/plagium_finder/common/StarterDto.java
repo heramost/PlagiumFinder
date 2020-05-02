@@ -6,26 +6,30 @@ import static java.util.stream.Collectors.joining;
 
 public class StarterDto {
 	private Language language;
-	private int pageWith;
-	private boolean avoidDuplicatesBetweenJplagAndSim;
+	private int pageWidth;
 	private int maximumMatchOccurrenceBeforeIgnored;
+	private IntegrationMode integrationMode;
 	private Precision precision;
 
 	public static void validate(StarterDto starterDto) {
 		if (starterDto.language == null) {
-			throw new IllegalArgumentException("Language must be set at Config");
+			throw new IllegalArgumentException("Language (language) must be set at Config");
 		}
 
-		if (starterDto.pageWith < 80 || starterDto.pageWith > 500) {
-			throw new IllegalArgumentException("Page with must be between 80 and 500");
+		if (starterDto.pageWidth < 80 || starterDto.pageWidth > 500) {
+			throw new IllegalArgumentException("Page width (pageWidth) must be between 80 and 500");
 		}
 
 		if (starterDto.maximumMatchOccurrenceBeforeIgnored < 2) {
-			throw new IllegalArgumentException("Maximum match occurrence before it is ignored must be at least 2");
+			throw new IllegalArgumentException("Maximum match occurrence before it is ignored (maximumMatchOccurrenceBeforeIgnored) must be at least 2");
 		}
 
 		if (starterDto.precision == null) {
-			throw new IllegalArgumentException("Accepted precision values are: " + Arrays.stream(Precision.values()).map(Enum::name).collect(joining(", ")));
+			throw new IllegalArgumentException("Accepted precision (precision) values are: " + Arrays.stream(Precision.values()).map(Enum::name).collect(joining(", ")));
+		}
+
+		if (starterDto.integrationMode == null) {
+			throw new IllegalArgumentException("Accepted integration mode (integrationMode) values are: " + Arrays.stream(IntegrationMode.values()).map(Enum::name).collect(joining(", ")));
 		}
 	}
 
@@ -37,20 +41,20 @@ public class StarterDto {
 		this.language = language;
 	}
 
-	public int getPageWith() {
-		return pageWith;
+	public int getPageWidth() {
+		return pageWidth;
 	}
 
-	public void setPageWith(int pageWith) {
-		this.pageWith = pageWith;
+	public void setPageWidth(int pageWidth) {
+		this.pageWidth = pageWidth;
 	}
 
-	public boolean isAvoidDuplicatesBetweenJplagAndSim() {
-		return avoidDuplicatesBetweenJplagAndSim;
+	public IntegrationMode getIntegrationMode() {
+		return integrationMode;
 	}
 
-	public void setAvoidDuplicatesBetweenJplagAndSim(boolean avoidDuplicatesBetweenJplagAndSim) {
-		this.avoidDuplicatesBetweenJplagAndSim = avoidDuplicatesBetweenJplagAndSim;
+	public void setIntegrationMode(IntegrationMode integrationMode) {
+		this.integrationMode = integrationMode;
 	}
 
 	public int getMaximumMatchOccurrenceBeforeIgnored() {

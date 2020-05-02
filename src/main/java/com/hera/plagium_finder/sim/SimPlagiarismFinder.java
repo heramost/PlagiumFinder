@@ -2,7 +2,7 @@ package com.hera.plagium_finder.sim;
 
 import com.hera.plagium_finder.common.StarterDto;
 import com.hera.plagium_finder.common.Submission;
-import com.hera.plagium_finder.jplag.JplagResult;
+import com.hera.plagium_finder.jplag.JplagResults;
 import com.hera.plagium_finder.util.ExternalProgramOutput;
 import com.hera.plagium_finder.util.ExternalResourceUtil;
 import com.hera.plagium_finder.util.StringNumComparator;
@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
+import static com.hera.plagium_finder.common.IntegrationMode.*;
 import static com.hera.plagium_finder.util.ExternalResourceUtil.callExternalProgram;
 import static java.lang.Math.round;
 import static java.util.Optional.ofNullable;
@@ -29,11 +30,11 @@ import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 
 public class SimPlagiarismFinder {
 	private final StarterDto starterDto;
-	private final JplagResult jplagResult;
+	private final JplagResults jplagResults;
 
-	public SimPlagiarismFinder(StarterDto starterDto, JplagResult jplagResult) {
+	public SimPlagiarismFinder(StarterDto starterDto, JplagResults jplagResults) {
 		this.starterDto = starterDto;
-		this.jplagResult = jplagResult;
+		this.jplagResults = jplagResults;
 	}
 
 	public void findPlagiarism() {
@@ -53,13 +54,13 @@ public class SimPlagiarismFinder {
 							double comparisonResultPercentage = comparisonResult.getPercentage();
 							double oppositeComparisonResultpercentage = comparisonResult.getOppositeComparisonResult().getPercentage();
 							return comparisonResultPercentage < oppositeComparisonResultpercentage
-											|| StringNumComparator.INSTANCE.compare(comparisonResult.getPublisher(), comparisonResult.getOppositeComparisonResult().getPublisher()) >= 0;
+											|| StringNumComparator.INSTANCE.compare(comparisonResult.getSubmission().getPublisher(), comparisonResult.getOppositeComparisonResult().getSubmission().getPublisher()) >= 0;
 						})
 						.collect(toList()));
 	}
 
 	private void markCommonCode(ParsedFileHandler parsedFileHandler) {
-		System.out.println("Finding similarities over " + starterDto.getMaximumMatchOccurrenceBeforeIgnored() + " occurrences.");
+		System.out.println("Finding similarities over " + starterDto.getMaximumMatchOccurrenceBeforeIgnored() + " occurrences");
 		Map<String, Set<ComparisonResult>> commonCodeBlocksFound = new HashMap<>();
 		parsedFileHandler.getComparisonResults()
 						.forEach(comparisonResult -> comparisonResult.getSplitCommonCodeBlocksWithTokenSize()
@@ -82,7 +83,7 @@ public class SimPlagiarismFinder {
 	}
 
 	private void writeOutput(ParsedFileHandler parsedFileHandler) {
-		System.out.println("Extending JPlag's output.");
+		System.out.println("Extending JPlag's output");
 		StringBuilder lines = new StringBuilder();
 		String line;
 		try (BufferedReader br = new BufferedReader(new FileReader("./result/index.html"))) {
@@ -107,21 +108,23 @@ public class SimPlagiarismFinder {
 	}
 
 	private String reportMatchesFoundBySim(ParsedFileHandler parsedFileHandler, MatchFileMaker matchFileMaker, ToDoubleFunction<ComparisonResult> similarityCalculator, final String similarityType, boolean percentageNeeded) {
-		Map<String, List<ComparisonResult>> comparisonResultsByPublisher = parsedFileHandler.getComparisonResults().stream()
-						.collect(Collectors.groupingBy(ComparisonResult::getPublisher));
-		Set<String> alreadyReportedPublishers = new HashSet<>();
+		Map<Submission, List<ComparisonResult>> comparisonResultsByPublisher = parsedFileHandler.getComparisonResults().stream()
+						.filter(comparisonResult -> starterDto.getIntegrationMode() != HIGHER_ONLY
+						|| jplagResults.getPercentageOfSimilarity(comparisonResult.getSubmission(), comparisonResult.getOtherSubmission()) < comparisonResult.getPercentage())
+						.collect(Collectors.groupingBy(ComparisonResult::getSubmission));
+		Set<Submission> alreadyReportedSubmissions = new HashSet<>();
 		return "<HR><H4>Matches sorted by " + similarityType + " found by SIM:</H4>\n"
 						+ "<TABLE CELLPADDING=3 CELLSPACING=2>"
 						+ parsedFileHandler.getComparisonResults().stream()
 						.filter(comparisonResult -> isNotEmpty(comparisonResult.getCommonCodeLines()))
 						.sorted(Comparator.comparingDouble(similarityCalculator).reversed())
-						.filter(comparisonResult -> alreadyReportedPublishers.add(comparisonResult.getPublisher()))
+						.filter(comparisonResult -> alreadyReportedSubmissions.add(comparisonResult.getSubmission()))
 						.map(comparisonResult -> "<TR>"
-										+ "<TD BGCOLOR=#9ACD32>" + comparisonResult.getPublisher() + "</TD><TD><nobr>-&gt;</nobr></TD>"
-										+ comparisonResultsByPublisher.get(comparisonResult.getPublisher()).stream()
+										+ "<TD BGCOLOR=#9ACD32>" + comparisonResult.getSubmission() + "</TD><TD><nobr>-&gt;</nobr></TD>"
+										+ comparisonResultsByPublisher.get(comparisonResult.getSubmission()).stream()
 										.sorted(Comparator.comparingDouble(similarityCalculator).reversed())
 										.map(comparisonResultForTheSamePublisher -> "<TD BGCOLOR=#9ACD32 ALIGN=center><A HREF=\"sim_match" + matchFileMaker.createMatchFile(comparisonResultForTheSamePublisher) + ".html\">"
-														+ comparisonResultForTheSamePublisher.getOtherPublisher()
+														+ comparisonResultForTheSamePublisher.getOtherSubmission()
 														+ "</A><BR><FONT COLOR=\"#ff0000\">(" + similarityCalculator.applyAsDouble(comparisonResultForTheSamePublisher) + (percentageNeeded ? "%" : "") + ")</FONT></TD>")
 										.collect(joining(""))
 										+ "</TR>")
@@ -141,8 +144,13 @@ public class SimPlagiarismFinder {
 		ParsedFileHandler parsedFileHandler = new ParsedFileHandler();
 		for (int i = 0; i < submissions.size() - 1; ++i) {
 			for (int j = i + 1; j < submissions.size(); ++j) {
-				ComparisonResult comparisonResult = calculateSimilarity(submissions, parsedFileHandler, i, j);
-				ComparisonResult oppositeComparisonResult = calculateSimilarity(submissions, parsedFileHandler, j, i);
+				Submission submission = new Submission(submissions.get(i));
+				Submission otherSubmission = new Submission(submissions.get(j));
+				if (starterDto.getIntegrationMode() == NO_DUPLICATES && jplagResults.getPercentageOfSimilarity(submission, otherSubmission) != 0d) {
+					continue;
+				}
+				ComparisonResult comparisonResult = calculateSimilarity(parsedFileHandler, submission, otherSubmission);
+				ComparisonResult oppositeComparisonResult = calculateSimilarity(parsedFileHandler, otherSubmission, submission);
 				if (comparisonResult != null && oppositeComparisonResult != null) {
 					ComparisonResult.setOppositeComparisonResults(comparisonResult, oppositeComparisonResult);
 				}
@@ -151,17 +159,12 @@ public class SimPlagiarismFinder {
 		return parsedFileHandler;
 	}
 
-	private ComparisonResult calculateSimilarity(List<String> submissions, ParsedFileHandler parsedFileHandler, int i, int j) {
-		Submission submission = new Submission(submissions.get(i));
-		Submission otherSubmission = new Submission(submissions.get(j));
-		if (starterDto.isAvoidDuplicatesBetweenJplagAndSim() && jplagResult.contains(submission, otherSubmission)) {
-			return null;
-		}
+	private ComparisonResult calculateSimilarity(ParsedFileHandler parsedFileHandler, Submission submission, Submission otherSubmission) {
 		ExternalProgramOutput externalProgramOutput = callExternalProgram("./"
 						+ starterDto.getLanguage().simProgram
 						+ " -r "
 						+ starterDto.getPrecision().getSimMinimumRunLength()
-						+ " -S -w " + starterDto.getPageWith() + " -R \"./submissions/"
+						+ " -S -w " + starterDto.getPageWidth() + " -R \"./submissions/"
 						+ submission
 						+ "/*\" \"|\" \"./submissions/"
 						+ otherSubmission

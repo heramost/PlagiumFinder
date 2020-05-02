@@ -8,8 +8,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
-
 public class MatchFileMaker {
 	private int matchesCreated = 0;
 
@@ -17,7 +15,7 @@ public class MatchFileMaker {
 		List<String> parsedFileNames = comparisonResult.getParsedFileNames();
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter("./result/sim_match" + matchesCreated + ".html"))) {
 			writer.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
-							+ "<HTML><HEAD><TITLE>Matches for " + comparisonResult.getPublisher() + " & " + comparisonResult.getOtherPublisher() + "</TITLE>\n"
+							+ "<HTML><HEAD><TITLE>Matches for " + comparisonResult.getSubmission() + " & " + comparisonResult.getOtherSubmission() + "</TITLE>\n"
 							+ "<META http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n"
 							+ "</HEAD>\n"
 							+ "<PRE>\n"

@@ -3,7 +3,7 @@ package com.hera;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hera.plagium_finder.common.StarterDto;
 import com.hera.plagium_finder.jplag.JplagPlagiarismFinder;
-import com.hera.plagium_finder.jplag.JplagResult;
+import com.hera.plagium_finder.jplag.JplagResults;
 import com.hera.plagium_finder.sim.SimPlagiarismFinder;
 import com.hera.plagium_finder.util.ExternalResourceUtil;
 import org.apache.commons.lang3.time.StopWatch;
@@ -37,13 +37,13 @@ public class Main {
 		}
 
 		JplagPlagiarismFinder jplagPlagiarismFinder = new JplagPlagiarismFinder(starterDto);
-		JplagResult jplagResult = jplagPlagiarismFinder.findPlagiarism();
-		if (!jplagResult.isSuccessfulRun()) {
+		JplagResults jplagResults = jplagPlagiarismFinder.findPlagiarism();
+		if (!jplagResults.isSuccessfulRun()) {
 			System.out.println("JPlag failed unexpectedly.");
 			return;
 		}
 
-		SimPlagiarismFinder simPlagiarismFinder = new SimPlagiarismFinder(starterDto, jplagResult);
+		SimPlagiarismFinder simPlagiarismFinder = new SimPlagiarismFinder(starterDto, jplagResults);
 		simPlagiarismFinder.findPlagiarism();
 		stopWatch.stop();
 		System.out.println("Execution finished in: " + Math.round(stopWatch.getTime(TimeUnit.MILLISECONDS) / 600.0) / 100.0 + " minutes");
