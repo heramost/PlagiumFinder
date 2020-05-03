@@ -38,7 +38,7 @@ public class SimPlagiarismFinder {
 	}
 
 	public void findPlagiarism() {
-		List<String> submissions = ExternalResourceUtil.getDirectories("./submissions");
+		List<String> submissions = ExternalResourceUtil.getDirectories("./submissions", "public");
 		ParsedFileHandler parsedFileHandler = findSimilaritiesBetweenSubmissions(submissions);
 		markCommonCode(parsedFileHandler);
 		getRidOfNotSignificantMatches(parsedFileHandler);

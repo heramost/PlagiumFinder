@@ -27,8 +27,9 @@ public class JplagPlagiarismFinder {
 						+ starterDto.getPrecision().getMinimumExpectedPercentage()
 						+ "% -vl -s -l "
 						+ starterDto.getLanguage().jplagParameter
-						+ " -t " + starterDto.getPrecision().getJplagThreshold() + " -p "
-						+ join(",", starterDto.getLanguage().fileExtensions)
+						+ " -t " + starterDto.getPrecision().getJplagThreshold()
+						+ " -bc public"
+						+ " -p " + join(",", starterDto.getLanguage().fileExtensions)
 						+ " ./submissions", false);
 		if (isNotEmpty(externalProgramOutput.getStdErr())) {
 			System.out.println("Running JPlag failed: " + join("\r\n", externalProgramOutput.getStdErr()));

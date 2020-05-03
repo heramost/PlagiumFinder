@@ -21,7 +21,7 @@ public class Main {
 			System.out.println("Old results directory: results must be deleted before run");
 			return;
 		}
-		if (ExternalResourceUtil.getDirectories("./submissions").size() < 2) {
+		if (ExternalResourceUtil.getDirectories("./submissions", "public").size() < 2) {
 			System.out.println("There must be at least to valid submissions to compare");
 			return;
 		}

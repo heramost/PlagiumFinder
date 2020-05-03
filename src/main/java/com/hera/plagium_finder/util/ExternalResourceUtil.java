@@ -6,8 +6,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.toList;
 
 public class ExternalResourceUtil {
 	public static ExternalProgramOutput callExternalProgram(String program, boolean readinessNeedsToBeChecked) {
@@ -38,12 +42,15 @@ public class ExternalResourceUtil {
 		return externalProgramOutput;
 	}
 
-	public static List<String> getDirectories(String path) {
+	public static List<String> getDirectories(String path, String... directoriesToExclude) {
 		try {
 			File file = new File(path);
 			String[] directories = file.list((current, name) -> new File(current, name).isDirectory());
-			Arrays.sort(directories, StringNumComparator.INSTANCE);
-			return Arrays.asList(directories);
+			List<String> directoriesToExc = asList(directoriesToExclude);
+			return  Arrays.stream(directories)
+							.filter(directory -> !directoriesToExc.contains(directory.split(path)[0]))
+							.sorted(StringNumComparator.INSTANCE)
+							.collect(toList());
 		}
 		catch (Exception e) {
 			System.out.println("Getting directories of path: " + path + " failed");
