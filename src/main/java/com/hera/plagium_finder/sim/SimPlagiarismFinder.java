@@ -6,6 +6,7 @@ import com.hera.plagium_finder.jplag.JplagResults;
 import com.hera.plagium_finder.util.ExternalProgramOutput;
 import com.hera.plagium_finder.util.ExternalResourceUtil;
 import com.hera.plagium_finder.util.StringNumComparator;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -38,8 +39,9 @@ public class SimPlagiarismFinder {
 	}
 
 	public void findPlagiarism() {
-		List<String> submissions = ExternalResourceUtil.getDirectories("./submissions", "public");
+		List<String> submissions = ExternalResourceUtil.getDirectories("./submissions");
 		ParsedFileHandler parsedFileHandler = findSimilaritiesBetweenSubmissions(submissions);
+		System.out.println("Processing SIM results started");
 		markCommonCode(parsedFileHandler);
 		getRidOfNotSignificantMatches(parsedFileHandler);
 		keepBetterResultForOppositeComparisonResults(parsedFileHandler);
@@ -52,15 +54,14 @@ public class SimPlagiarismFinder {
 						.filter(comparisonResult -> parsedFileHandler.getComparisonResults().contains(comparisonResult.getOppositeComparisonResult()))
 						.filter(comparisonResult -> {
 							double comparisonResultPercentage = comparisonResult.getPercentage();
-							double oppositeComparisonResultpercentage = comparisonResult.getOppositeComparisonResult().getPercentage();
-							return comparisonResultPercentage < oppositeComparisonResultpercentage
-											|| StringNumComparator.INSTANCE.compare(comparisonResult.getSubmission().getPublisher(), comparisonResult.getOppositeComparisonResult().getSubmission().getPublisher()) >= 0;
+							double oppositeComparisonResultPercentage = comparisonResult.getOppositeComparisonResult().getPercentage();
+							return comparisonResultPercentage < oppositeComparisonResultPercentage
+											|| ( comparisonResultPercentage == oppositeComparisonResultPercentage && StringNumComparator.INSTANCE.compare(comparisonResult.getSubmission().getPublisher(), comparisonResult.getOppositeComparisonResult().getSubmission().getPublisher()) >= 0);
 						})
 						.collect(toList()));
 	}
 
 	private void markCommonCode(ParsedFileHandler parsedFileHandler) {
-		System.out.println("Finding similarities over " + starterDto.getMaximumMatchOccurrenceBeforeIgnored() + " occurrences");
 		Map<String, Set<ComparisonResult>> commonCodeBlocksFound = new HashMap<>();
 		parsedFileHandler.getComparisonResults()
 						.forEach(comparisonResult -> comparisonResult.getSplitCommonCodeBlocksWithTokenSize()
@@ -70,10 +71,26 @@ public class SimPlagiarismFinder {
 											comparisonResults.add(comparisonResult);
 											return comparisonResults;
 										})));
+		if (StringUtils.isNotEmpty(starterDto.getNameOfPublicSubmission())) {
+			markPublicCodeUsage(commonCodeBlocksFound);
+		}
+		markTooManyOccurences(commonCodeBlocksFound);
+	}
+
+	private void markPublicCodeUsage(Map<String, Set<ComparisonResult>> commonCodeBlocksFound) {
+		System.out.println("Finding usages of public submission's source code");
 		commonCodeBlocksFound.entrySet().stream()
+						.filter(commonCodeBlockFound -> commonCodeBlockFound.getValue().stream().anyMatch(ComparisonResult::hasPublicSubmission))
+						.forEach(commonCodeBlockFound -> commonCodeBlockFound.getValue().forEach(comparisonResult -> comparisonResult.markPublicCode(commonCodeBlockFound.getKey())));
+	}
+
+	private void markTooManyOccurences(Map<String, Set<ComparisonResult>> commonCodeBlocksFound) {
+		System.out.println("Finding similarities over " + starterDto.getMaximumMatchOccurrence() + " occurrences");
+		commonCodeBlocksFound.entrySet().stream()
+						.filter(commonCodeBlockFound -> commonCodeBlockFound.getValue().stream().noneMatch(ComparisonResult::hasPublicSubmission))
 						.filter(commonCodeBlockFound -> commonCodeBlockFound.getValue().size() - commonCodeBlockFound.getValue().stream()
 										.filter(comparisonResult -> commonCodeBlockFound.getValue().contains(comparisonResult.getOppositeComparisonResult()))
-										.count() / 2 > starterDto.getMaximumMatchOccurrenceBeforeIgnored())
+										.count() / 2 > starterDto.getMaximumMatchOccurrence())
 						.forEach(commonCodeBlockFound -> commonCodeBlockFound.getValue().forEach(comparisonResult -> comparisonResult.markCommonCode(commonCodeBlockFound.getKey())));
 	}
 
@@ -169,7 +186,7 @@ public class SimPlagiarismFinder {
 						+ "/*\" \"|\" \"./submissions/"
 						+ otherSubmission
 						+ "/*\"", false);
-		ComparisonResult comparisonResult = new ComparisonResult(starterDto.getPrecision());
+		ComparisonResult comparisonResult = new ComparisonResult(starterDto.getPrecision(), isPublicSubmission(submission) || isPublicSubmission(otherSubmission));
 		parsedFileHandler.addComparisonResult(comparisonResult);
 		boolean newFiles = true;
 		for (String out : externalProgramOutput.getStdOut()) {
@@ -199,6 +216,10 @@ public class SimPlagiarismFinder {
 		}
 
 		return comparisonResult;
+	}
+
+	private boolean isPublicSubmission(Submission submission) {
+		return submission.getPublisher().equals(starterDto.getNameOfPublicSubmission());
 	}
 
 	private ParsedFile createParsedFileIfNew(ParsedFileHandler parsedFileHandler, String out) {

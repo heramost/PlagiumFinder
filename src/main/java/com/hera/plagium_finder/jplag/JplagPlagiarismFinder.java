@@ -4,6 +4,7 @@ import com.hera.plagium_finder.common.StarterDto;
 import com.hera.plagium_finder.common.Submission;
 import com.hera.plagium_finder.util.ExternalProgramOutput;
 import com.hera.plagium_finder.util.ExternalResourceUtil;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -13,6 +14,7 @@ import java.util.Arrays;
 import static com.hera.plagium_finder.util.ExternalResourceUtil.callExternalProgram;
 import static java.lang.String.join;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isNoneEmpty;
 
 public class JplagPlagiarismFinder {
 	private final StarterDto starterDto;
@@ -28,7 +30,7 @@ public class JplagPlagiarismFinder {
 						+ "% -vl -s -l "
 						+ starterDto.getLanguage().jplagParameter
 						+ " -t " + starterDto.getPrecision().getJplagThreshold()
-						+ " -bc public"
+						+ (isNoneEmpty(starterDto.getNameOfPublicSubmission()) ? " -bc " + starterDto.getNameOfPublicSubmission() : "")
 						+ " -p " + join(",", starterDto.getLanguage().fileExtensions)
 						+ " ./submissions", false);
 		if (isNotEmpty(externalProgramOutput.getStdErr())) {

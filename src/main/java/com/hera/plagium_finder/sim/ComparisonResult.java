@@ -5,7 +5,6 @@ import com.hera.plagium_finder.common.Submission;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.*;
@@ -17,9 +16,11 @@ public class ComparisonResult {
 	private List<String> commonCodeLines = new LinkedList<>();
 	private List<String> commonCodeBlocks = new LinkedList<>();
 	private ComparisonResult oppositeComparisonResult;
+	private boolean hasPublicSubmission;
 
-	public ComparisonResult(Precision precision) {
+	public ComparisonResult(Precision precision, boolean hasPublicSubmission) {
 		this.precision = precision;
+		this.hasPublicSubmission = hasPublicSubmission;
 	}
 
 	public boolean significantMatch() {
@@ -54,7 +55,7 @@ public class ComparisonResult {
 
 	public int getNrOfMatchingTokens() {
 		return commonCodeBlocks.stream()
-						.map(commonCodeBlock -> commonCodeBlock.contains(" - common code -") ? "0" : getTokenSizeOfCommonCodeBlock(commonCodeBlock))
+						.map(commonCodeBlock -> commonCodeBlock.contains(" - common code -") ||  commonCodeBlock.contains(" - public code -") ? "0" : getTokenSizeOfCommonCodeBlock(commonCodeBlock))
 						.mapToInt(Integer::valueOf)
 						.sum();
 	}
@@ -102,19 +103,26 @@ public class ComparisonResult {
 	}
 
 	public void markCommonCode(String codeBlockPart) {
-		Optional<String> optionalCodeBlock = commonCodeBlocks.stream()
+		markCode(codeBlockPart, " - common code -");
+	}
+
+	public void markPublicCode(String codeBlockPart) {
+		markCode(codeBlockPart, " - public code -");
+	}
+
+	private void markCode(String codeBlockPart, String mark) {
+		List<String> commonCodeBlocksOccurredTooManyTimes = commonCodeBlocks.stream()
 						.filter(commonCodeBlock -> commonCodeBlock.contains(codeBlockPart))
-						.findFirst();
-		optionalCodeBlock.ifPresent(codeBlock -> {
+						.collect(toList());
+		commonCodeBlocksOccurredTooManyTimes.forEach(commonCodeBlockOccurredTooManyTimes -> {
 			for (int i = 0; i < commonCodeLines.size(); i++) {
 				String commonCodeLine = commonCodeLines.get(i);
-				if (commonCodeLine.equals(codeBlock)) {
-					commonCodeLines.set(i, codeBlock + " - common code -");
+				if (commonCodeLine.equals(commonCodeBlockOccurredTooManyTimes)) {
+					commonCodeLines.set(i, commonCodeBlockOccurredTooManyTimes + mark);
 				}
 			}
-			commonCodeBlocks.remove(codeBlock);
+			commonCodeBlocks.remove(commonCodeBlockOccurredTooManyTimes);
 		});
-
 	}
 
 	public static void setOppositeComparisonResults(ComparisonResult comparisonResult, ComparisonResult oppositeComparisonResult) {
@@ -124,5 +132,9 @@ public class ComparisonResult {
 
 	public ComparisonResult getOppositeComparisonResult() {
 		return oppositeComparisonResult;
+	}
+
+	public boolean hasPublicSubmission() {
+		return hasPublicSubmission;
 	}
 }

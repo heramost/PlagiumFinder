@@ -1,7 +1,8 @@
 {
 	"language": "CPP",
 	"pageWidth": "200",
-	"integrationMode": "NO_DUPLICATES",
-	"maximumMatchOccurrenceBeforeIgnored":"5",
-	"precision": "NORMAL"
+	"integrationMode": "HIGHER_ONLY",
+	"maximumMatchOccurrence":"5",
+	"precision": "NORMAL",
+	"nameOfPublicSubmission": "public"
 }
