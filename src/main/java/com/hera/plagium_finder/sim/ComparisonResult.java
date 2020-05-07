@@ -16,11 +16,9 @@ public class ComparisonResult {
 	private List<String> commonCodeLines = new LinkedList<>();
 	private List<String> commonCodeBlocks = new LinkedList<>();
 	private ComparisonResult oppositeComparisonResult;
-	private boolean hasPublicSubmission;
 
-	public ComparisonResult(Precision precision, boolean hasPublicSubmission) {
+	public ComparisonResult(Precision precision) {
 		this.precision = precision;
-		this.hasPublicSubmission = hasPublicSubmission;
 	}
 
 	public boolean significantMatch() {
@@ -132,9 +130,5 @@ public class ComparisonResult {
 
 	public ComparisonResult getOppositeComparisonResult() {
 		return oppositeComparisonResult;
-	}
-
-	public boolean hasPublicSubmission() {
-		return hasPublicSubmission;
 	}
 }

@@ -6,6 +6,7 @@ import java.util.List;
 public class ParsedFileHandler {
 	private List<ParsedFile> parsedFiles = new LinkedList<>();
 	private List<ComparisonResult> comparisonResults = new LinkedList<>();
+	private List<ComparisonResult> publicComparisonResults = new LinkedList<>();
 
 	public ParsedFile createParsedFileIfNew(String path, int nrOfTokens) {
 		ParsedFile parsedFile;
@@ -30,7 +31,15 @@ public class ParsedFileHandler {
 		return comparisonResults;
 	}
 
+	public List<ComparisonResult> getPublicComparisonResults() {
+		return publicComparisonResults;
+	}
+
 	public void addComparisonResult(ComparisonResult comparisonResult) {
 		comparisonResults.add(comparisonResult);
+	}
+
+	public void addPublicComparisonResult(ComparisonResult comparisonResult) {
+		publicComparisonResults.add(comparisonResult);
 	}
 }

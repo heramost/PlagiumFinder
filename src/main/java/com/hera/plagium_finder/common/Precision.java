@@ -2,8 +2,8 @@ package com.hera.plagium_finder.common;
 
 public enum Precision {
 	LIGHT(10, 30, 50, 100, 5),
-	NORMAL(15, 40, 75, 400, 7),
-	HIGH(20, 50, 100, 600, 10);
+	NORMAL(15, 40, 75, 600, 7),
+	HIGH(20, 50, 100, 900, 10);
 
 	private final int simMinimumRunLength;
 	private final int minimumExpectedPercentage;

@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -14,8 +13,10 @@ import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toList;
 
 public class ExternalResourceUtil {
-	public static ExternalProgramOutput callExternalProgram(String program, boolean readinessNeedsToBeChecked) {
-		System.out.println("Calling: " + program);
+	public static ExternalProgramOutput callExternalProgram(String program, boolean readinessNeedsToBeChecked, boolean logCall) {
+		if (logCall) {
+			System.out.println("Calling: " + program);
+		}
 		ExternalProgramOutput externalProgramOutput = new ExternalProgramOutput();
 		try {
 			Process process = Runtime.getRuntime().exec(program);

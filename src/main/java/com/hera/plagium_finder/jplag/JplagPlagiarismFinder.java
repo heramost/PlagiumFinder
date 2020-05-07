@@ -4,12 +4,10 @@ import com.hera.plagium_finder.common.StarterDto;
 import com.hera.plagium_finder.common.Submission;
 import com.hera.plagium_finder.util.ExternalProgramOutput;
 import com.hera.plagium_finder.util.ExternalResourceUtil;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Arrays;
 
 import static com.hera.plagium_finder.util.ExternalResourceUtil.callExternalProgram;
 import static java.lang.String.join;
@@ -32,7 +30,8 @@ public class JplagPlagiarismFinder {
 						+ " -t " + starterDto.getPrecision().getJplagThreshold()
 						+ (isNoneEmpty(starterDto.getNameOfPublicSubmission()) ? " -bc " + starterDto.getNameOfPublicSubmission() : "")
 						+ " -p " + join(",", starterDto.getLanguage().fileExtensions)
-						+ " ./submissions", false);
+						+ " ./submissions", false, true);
+		System.out.println("JPlag finished");
 		if (isNotEmpty(externalProgramOutput.getStdErr())) {
 			System.out.println("Running JPlag failed: " + join("\r\n", externalProgramOutput.getStdErr()));
 			return jplagResults;

@@ -1,5 +1,6 @@
 package com.hera.plagium_finder.sim;
 
+import com.hera.plagium_finder.common.Language;
 import com.hera.plagium_finder.common.StarterDto;
 import com.hera.plagium_finder.common.Submission;
 import com.hera.plagium_finder.jplag.JplagResults;
@@ -23,6 +24,7 @@ import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
 import static com.hera.plagium_finder.common.IntegrationMode.*;
+import static com.hera.plagium_finder.common.Language.TEXT;
 import static com.hera.plagium_finder.util.ExternalResourceUtil.callExternalProgram;
 import static java.lang.Math.round;
 import static java.util.Optional.ofNullable;
@@ -72,22 +74,23 @@ public class SimPlagiarismFinder {
 											return comparisonResults;
 										})));
 		if (StringUtils.isNotEmpty(starterDto.getNameOfPublicSubmission())) {
-			markPublicCodeUsage(commonCodeBlocksFound);
+			markPublicCodeUsage(parsedFileHandler, commonCodeBlocksFound);
 		}
-		markTooManyOccurences(commonCodeBlocksFound);
+		markTooManyOccurrences(commonCodeBlocksFound);
 	}
 
-	private void markPublicCodeUsage(Map<String, Set<ComparisonResult>> commonCodeBlocksFound) {
+	private void markPublicCodeUsage(ParsedFileHandler parsedFileHandler, Map<String, Set<ComparisonResult>> commonCodeBlocksFound) {
 		System.out.println("Finding usages of public submission's source code");
-		commonCodeBlocksFound.entrySet().stream()
-						.filter(commonCodeBlockFound -> commonCodeBlockFound.getValue().stream().anyMatch(ComparisonResult::hasPublicSubmission))
-						.forEach(commonCodeBlockFound -> commonCodeBlockFound.getValue().forEach(comparisonResult -> comparisonResult.markPublicCode(commonCodeBlockFound.getKey())));
+		Set<String> publicCodesFound = parsedFileHandler.getPublicComparisonResults().stream()
+						.flatMap(comparisonResult -> comparisonResult.getSplitCommonCodeBlocksWithTokenSize().stream())
+						.collect(toSet());
+		publicCodesFound
+						.forEach(publicCodeFound -> commonCodeBlocksFound.remove(publicCodeFound).forEach(comparisonResult -> comparisonResult.markPublicCode(publicCodeFound)));
 	}
 
-	private void markTooManyOccurences(Map<String, Set<ComparisonResult>> commonCodeBlocksFound) {
+	private void markTooManyOccurrences(Map<String, Set<ComparisonResult>> commonCodeBlocksFound) {
 		System.out.println("Finding similarities over " + starterDto.getMaximumMatchOccurrence() + " occurrences");
 		commonCodeBlocksFound.entrySet().stream()
-						.filter(commonCodeBlockFound -> commonCodeBlockFound.getValue().stream().noneMatch(ComparisonResult::hasPublicSubmission))
 						.filter(commonCodeBlockFound -> commonCodeBlockFound.getValue().size() - commonCodeBlockFound.getValue().stream()
 										.filter(comparisonResult -> commonCodeBlockFound.getValue().contains(comparisonResult.getOppositeComparisonResult()))
 										.count() / 2 > starterDto.getMaximumMatchOccurrence())
@@ -134,6 +137,7 @@ public class SimPlagiarismFinder {
 						+ "<TABLE CELLPADDING=3 CELLSPACING=2>"
 						+ parsedFileHandler.getComparisonResults().stream()
 						.filter(comparisonResult -> isNotEmpty(comparisonResult.getCommonCodeLines()))
+						.filter(comparisonResult -> comparisonResultsByPublisher.containsKey(comparisonResult.getSubmission()))
 						.sorted(Comparator.comparingDouble(similarityCalculator).reversed())
 						.filter(comparisonResult -> alreadyReportedSubmissions.add(comparisonResult.getSubmission()))
 						.map(comparisonResult -> "<TR>"
@@ -154,25 +158,43 @@ public class SimPlagiarismFinder {
 	}
 
 	private static double calculatePercentage(ComparisonResult comparisonResult) {
-		return round(comparisonResult.getPercentage() * 10) / 10.0;
+		return roundToDecimals(comparisonResult.getPercentage(), 1);
+	}
+
+	private static double roundToDecimals(double num, int nrOfDecimals) {
+		double modifier = Math.pow(10, nrOfDecimals);
+		return round(num * modifier) / modifier;
 	}
 
 	private ParsedFileHandler findSimilaritiesBetweenSubmissions(List<String> submissions) {
+		System.out.println("Calling SIM for each submission pairs");
 		ParsedFileHandler parsedFileHandler = new ParsedFileHandler();
+		int nrOfComparisons = (submissions.size() - 1) * submissions.size();
+		System.out.println("SIM's progress: 0 %");
+		int comparisonCounter = 0;
 		for (int i = 0; i < submissions.size() - 1; ++i) {
 			for (int j = i + 1; j < submissions.size(); ++j) {
+				++comparisonCounter;
 				Submission submission = new Submission(submissions.get(i));
 				Submission otherSubmission = new Submission(submissions.get(j));
 				if (starterDto.getIntegrationMode() == NO_DUPLICATES && jplagResults.getPercentageOfSimilarity(submission, otherSubmission) != 0d) {
 					continue;
 				}
-				ComparisonResult comparisonResult = calculateSimilarity(parsedFileHandler, submission, otherSubmission);
-				ComparisonResult oppositeComparisonResult = calculateSimilarity(parsedFileHandler, otherSubmission, submission);
-				if (comparisonResult != null && oppositeComparisonResult != null) {
-					ComparisonResult.setOppositeComparisonResults(comparisonResult, oppositeComparisonResult);
+				try {
+					ComparisonResult comparisonResult = calculateSimilarity(parsedFileHandler, submission, otherSubmission);
+					ComparisonResult oppositeComparisonResult = calculateSimilarity(parsedFileHandler, otherSubmission, submission);
+					if (comparisonResult != null && oppositeComparisonResult != null) {
+						ComparisonResult.setOppositeComparisonResults(comparisonResult, oppositeComparisonResult);
+					}
+				} catch (Exception e) {
+					System.out.println("Some issue happened when comparing: " + submission.getPublisher() + " and " + otherSubmission.getPublisher() + ". They are skipped.");
+					e.printStackTrace();
 				}
+
 			}
+			System.out.println("SIM's progress: " + roundToDecimals((comparisonCounter / (double) nrOfComparisons * 200), 3) + " %");
 		}
+		System.out.println("SIM finished");
 		return parsedFileHandler;
 	}
 
@@ -185,9 +207,12 @@ public class SimPlagiarismFinder {
 						+ submission
 						+ "/*\" \"|\" \"./submissions/"
 						+ otherSubmission
-						+ "/*\"", false);
-		ComparisonResult comparisonResult = new ComparisonResult(starterDto.getPrecision(), isPublicSubmission(submission) || isPublicSubmission(otherSubmission));
+						+ "/*\"", false, false);
+		ComparisonResult comparisonResult = new ComparisonResult(starterDto.getPrecision());
 		parsedFileHandler.addComparisonResult(comparisonResult);
+		if (isPublicSubmission(submission) || isPublicSubmission(otherSubmission)) {
+			parsedFileHandler.addPublicComparisonResult(comparisonResult);
+		}
 		boolean newFiles = true;
 		for (String out : externalProgramOutput.getStdOut()) {
 			if (out.startsWith("File |: new/old separator")) {
@@ -224,6 +249,6 @@ public class SimPlagiarismFinder {
 
 	private ParsedFile createParsedFileIfNew(ParsedFileHandler parsedFileHandler, String out) {
 		int fileNameEnd = out.indexOf(": ");
-		return parsedFileHandler.createParsedFileIfNew(out.substring(5, fileNameEnd), Integer.parseInt(out.substring(fileNameEnd + 2, fileNameEnd + out.substring(fileNameEnd).lastIndexOf(" token"))));
+		return parsedFileHandler.createParsedFileIfNew(out.substring(5, fileNameEnd), Integer.parseInt(out.substring(fileNameEnd + 2, fileNameEnd + out.substring(fileNameEnd).lastIndexOf(starterDto.getLanguage() == TEXT ? " word" : " token"))));
 	}
 }

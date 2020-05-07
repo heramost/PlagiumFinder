@@ -5,7 +5,17 @@ ForEach($folder in $rootfolders)
 	$innerFolders = Dir $folder.fullname -Directory
 	ForEach($innerFolder in $innerFolders)
 	{
-		Dir $innerFolder.fullname -Recurse -File | Copy-Item -Destination $folder.fullname
+		$filesToMove = Dir $innerFolder.fullname -Recurse -File;
+		ForEach ($file in $filesToMove) {
+			$i = ""
+			$destination = $folder.fullname + "\" + $file.BaseName + $i + $file.Extension
+			While (Test-Path $destination) {
+				$i += "_another"
+				$destination = $folder.fullname + "\" + $file.BaseName + $i + $file.Extension
+				Write-Output $destination
+			}
+			Copy-Item -Path $file.FullName -Destination $destination -Force
+		}
 	}
 	Dir $folder.fullname -Recurse -Directory | Remove-Item -Force -Recurse
 
@@ -18,3 +28,4 @@ ForEach($folder in $rootfolders)
     	    Remove-Item "$($fullname)_ascii";
     	}
 }
+Read-Host "Hit enter"
