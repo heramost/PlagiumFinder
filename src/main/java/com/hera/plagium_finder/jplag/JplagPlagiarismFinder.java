@@ -37,6 +37,7 @@ public class JplagPlagiarismFinder {
 			return jplagResults;
 		}
 		if (externalProgramOutput.getStdOut().isEmpty()) {
+			System.out.println(externalProgramOutput.getStdErr());
 			System.out.println("Running jplag failed unexpectedly");
 			return jplagResults;
 		}

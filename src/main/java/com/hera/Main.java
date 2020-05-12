@@ -36,7 +36,7 @@ public class Main {
 			return;
 		}
 		if (ExternalResourceUtil.getDirectories("./submissions", starterDto.getNameOfPublicSubmission()).size() < 2) {
-			System.out.println("There must be at least to valid submissions to compare");
+			System.out.println("There must be at least two valid submissions to compare");
 			return;
 		}
 		if (isNotEmpty(starterDto.getNameOfPublicSubmission()) && !hasDirectory("./submissions", starterDto.getNameOfPublicSubmission())) {

@@ -1,5 +1,5 @@
 {
-	"language": "CPP",
+	"language": "C",
 	"pageWidth": "200",
 	"integrationMode": "INDEPENDENT",
 	"maximumMatchOccurrence":"5",
