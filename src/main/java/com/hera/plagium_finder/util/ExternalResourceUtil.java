@@ -1,5 +1,7 @@
 package com.hera.plagium_finder.util;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
@@ -50,7 +52,7 @@ public class ExternalResourceUtil {
 			List<String> directoriesToExc = asList(directoriesToExclude);
 			return  Arrays.stream(directories)
 							.filter(directory -> !directoriesToExc.contains(directory.split(path)[0]))
-							.sorted(StringNumComparator.INSTANCE)
+							.sorted()
 							.collect(toList());
 		}
 		catch (Exception e) {

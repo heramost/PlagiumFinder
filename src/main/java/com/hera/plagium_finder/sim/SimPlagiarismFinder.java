@@ -1,12 +1,10 @@
 package com.hera.plagium_finder.sim;
 
-import com.hera.plagium_finder.common.Language;
 import com.hera.plagium_finder.common.StarterDto;
 import com.hera.plagium_finder.common.Submission;
 import com.hera.plagium_finder.jplag.JplagResults;
 import com.hera.plagium_finder.util.ExternalProgramOutput;
 import com.hera.plagium_finder.util.ExternalResourceUtil;
-import com.hera.plagium_finder.util.StringNumComparator;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.BufferedReader;
@@ -58,7 +56,7 @@ public class SimPlagiarismFinder {
 							double comparisonResultPercentage = comparisonResult.getPercentage();
 							double oppositeComparisonResultPercentage = comparisonResult.getOppositeComparisonResult().getPercentage();
 							return comparisonResultPercentage < oppositeComparisonResultPercentage
-											|| ( comparisonResultPercentage == oppositeComparisonResultPercentage && StringNumComparator.INSTANCE.compare(comparisonResult.getSubmission().getPublisher(), comparisonResult.getOppositeComparisonResult().getSubmission().getPublisher()) >= 0);
+											|| ( comparisonResultPercentage == oppositeComparisonResultPercentage && comparisonResult.getSubmission().getPublisher().compareTo(comparisonResult.getOppositeComparisonResult().getSubmission().getPublisher()) >= 0);
 						})
 						.collect(toList()));
 	}
